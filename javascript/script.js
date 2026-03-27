@@ -6,56 +6,59 @@ document.addEventListener('DOMContentLoaded', function() {
     const downloadArea = document.getElementById('downloadArea');
     const fileLink = document.getElementById('fileLink');
 
-    console.log("Brasil IA: Painel de controle carregado.");
-
     fileInput.addEventListener('change', function() {
-        if (this.files && this.files[0]) {
-            const file = this.files[0];
-            fileNameLabel.innerHTML = `<b>Selecionado:</b> ${file.name}`;
+        if (this.files[0]) {
+            fileNameLabel.innerHTML = `<b>Selecionado:</b> ${this.files[0].name}`;
             convertBtn.disabled = false;
-            statusMsg.innerText = "";
-            downloadArea.style.display = 'none';
         }
     });
 
-    convertBtn.addEventListener('click', function() {
+    convertBtn.addEventListener('click', async function() {
         const file = fileInput.files[0];
         if (!file) return;
 
         convertBtn.disabled = true;
-        statusMsg.innerText = "⏳ Processando... Aguarde.";
+        statusMsg.innerText = "⏳ Solicitando túnel de upload...";
 
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
+        try {
+            // PASSO 1: Pegar autorização da nossa API
+            const authRes = await fetch('/api/convert-office', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: file.name })
+            });
 
-        reader.onload = async function() {
-            try {
-                const base64File = reader.result.split(',')[1];
-                statusMsg.innerText = "🚀 Enviando para o motor Brasil IA...";
+            const uploadData = await authRes.json();
+            if (!authRes.ok) throw new Error(uploadData.error);
 
-                const response = await fetch('/api/convert-office', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        file: base64File,
-                        filename: file.name
-                    })
-                });
+            // PASSO 2: Upload DIRETO para a CloudConvert (Sem limite da Vercel)
+            statusMsg.innerText = "🚀 Enviando arquivo pesado (Direto)...";
+            
+            const formData = new FormData();
+            // Adicionamos todos os campos que a CloudConvert exige
+            Object.entries(uploadData.result.form.parameters).forEach(([key, value]) => {
+                formData.append(key, value);
+            });
+            formData.append('file', file);
 
-                const result = await response.json();
+            const uploadRes = await fetch(uploadData.result.form.url, {
+                method: 'POST',
+                body: formData
+            });
 
-                if (response.ok && result.jobId) {
-                    statusMsg.innerHTML = `✅ <b>Sucesso!</b> ID: ${result.jobId}`;
-                    downloadArea.style.display = 'block';
-                    fileLink.href = `https://cloudconvert.com/public/jobs/${result.jobId}`; 
-                } else {
-                    throw new Error(result.error || "Erro na conversão.");
-                }
-
-            } catch (error) {
-                statusMsg.innerText = "❌ " + error.message;
-                convertBtn.disabled = false;
+            if (uploadRes.ok) {
+                statusMsg.innerHTML = `✅ <b>Sucesso!</b> Arquivo enviado.<br>Processando conversão...`;
+                downloadArea.style.display = 'block';
+                // Opcional: Aqui você usaria o ID para monitorar, mas vamos deixar o link manual por enquanto
+                fileLink.href = "https://cloudconvert.com/dashboard/api/v2/jobs"; 
+                fileLink.innerText = "VER STATUS NO PAINEL";
+            } else {
+                throw new Error("Falha no upload direto.");
             }
-        };
+
+        } catch (error) {
+            statusMsg.innerText = "❌ Erro: " + error.message;
+            convertBtn.disabled = false;
+        }
     });
 });

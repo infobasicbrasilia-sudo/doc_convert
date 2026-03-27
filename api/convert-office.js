@@ -1,30 +1,25 @@
 export default async function handler(req, res) {
-    const API_KEY = process.env.CLOUDCONVERT_KEY;
+    const API_KEY = process.env.CLOUDCONVERT_KEY; // Deve ter o "Bearer " na Vercel
 
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
     try {
-        const { file, filename } = req.body;
-        
-        const response = await fetch('https://api.cloudconvert.com/v2/jobs', {
+        const { filename } = req.body;
+
+        // 1. Pedimos uma "Autorização de Upload" para a CloudConvert
+        const response = await fetch('https://api.cloudconvert.com/v2/import/upload', {
             method: 'POST',
             headers: {
-                'Authorization': API_KEY, // Deve ser "Bearer eyJ..." no painel da Vercel
+                'Authorization': API_KEY,
                 'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                "tasks": {
-                    "import-1": { "operation": "import/base64", "file": file, "filename": filename },
-                    "task-1": { "operation": "convert", "input": "import-1", "output_format": "pdf" },
-                    "export-1": { "operation": "export/url", "input": "task-1" }
-                }
-            })
+            }
         });
 
         const data = await response.json();
-        
+
         if (response.ok) {
-            res.status(200).json({ jobId: data.data.id });
+            // Retornamos os dados do "Formulário de Upload" para o navegador
+            res.status(200).json(data.data);
         } else {
             res.status(response.status).json({ error: data.message });
         }
