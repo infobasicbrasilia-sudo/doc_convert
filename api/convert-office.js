@@ -6,38 +6,37 @@ export default async function handler(req, res) {
     try {
         const { fileBase64, filename } = req.body;
 
-        // Convertemos o Base64 de volta para um Blob para enviar ao Render
-        const byteCharacters = atob(fileBase64);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const fileBlob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+        // 1. Transforma o Base64 em um Buffer real do Node.js
+        const buffer = Buffer.from(fileBase64, 'base64');
 
-        // Criamos o formulário que o Gotenberg exige
+        // 2. Cria o formulário exatamente como o Gotenberg exige
         const formData = new FormData();
+        // O segredo está aqui: o campo DEVE se chamar 'files'
+        const fileBlob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
         formData.append('files', fileBlob, filename);
 
-        // Chamada para o SEU servidor no Render
+        // 3. Envia para o seu servidor Render
         const response = await fetch(RENDER_URL, {
             method: 'POST',
             body: formData
         });
 
-        if (response.ok) {
-            const pdfBuffer = await response.arrayBuffer();
-            const pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
-            
-            res.status(200).json({ 
-                pdfBase64: pdfBase64,
-                filename: filename.replace(/\.[^/.]+$/, "") + ".pdf" 
-            });
-        } else {
-            const errorText = await response.text();
-            res.status(response.status).json({ error: "Erro no servidor Render: " + errorText });
+        if (!response.ok) {
+            const errorMsg = await response.text();
+            throw new Error(`Erro no Render: ${errorMsg}`);
         }
+
+        // 4. Recebe o PDF e manda de volta pro seu site
+        const pdfBuffer = await response.arrayBuffer();
+        const pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
+
+        res.status(200).json({ 
+            pdfBase64: pdfBase64,
+            filename: filename.replace(/\.[^/.]+$/, "") + ".pdf" 
+        });
+
     } catch (error) {
+        console.error(error);
         res.status(500).json({ error: error.message });
     }
 }
