@@ -5,38 +5,37 @@ export default async function handler(req, res) {
 
     try {
         const { fileBase64, filename } = req.body;
+        if (!fileBase64) throw new Error("Arquivo não recebido pela API.");
 
-        // 1. Transforma o Base64 em um Buffer real do Node.js
         const buffer = Buffer.from(fileBase64, 'base64');
-
-        // 2. Cria o formulário exatamente como o Gotenberg exige
         const formData = new FormData();
-        // O segredo está aqui: o campo DEVE se chamar 'files'
-        const fileBlob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+        const fileBlob = new Blob([buffer]);
         formData.append('files', fileBlob, filename);
 
-        // 3. Envia para o seu servidor Render
+        // Aumentamos o timeout para 60 segundos para o Render acordar
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000);
+
         const response = await fetch(RENDER_URL, {
             method: 'POST',
-            body: formData
+            body: formData,
+            signal: controller.signal
         });
 
+        clearTimeout(timeoutId);
+
         if (!response.ok) {
-            const errorMsg = await response.text();
-            throw new Error(`Erro no Render: ${errorMsg}`);
+            throw new Error(`O servidor Render respondeu com erro: ${response.status}`);
         }
 
-        // 4. Recebe o PDF e manda de volta pro seu site
         const pdfBuffer = await response.arrayBuffer();
-        const pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
-
         res.status(200).json({ 
-            pdfBase64: pdfBase64,
+            pdfBase64: Buffer.from(pdfBuffer).toString('base64'),
             filename: filename.replace(/\.[^/.]+$/, "") + ".pdf" 
         });
 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: error.message });
+        console.error("ERRO DE PERÍCIA:", error.message);
+        res.status(500).json({ error: "Falha na comunicação: " + error.message });
     }
 }
