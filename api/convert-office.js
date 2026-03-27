@@ -1,44 +1,41 @@
 export default async function handler(req, res) {
-    const API_KEY = process.env.CLOUDCONVERT_KEY; // Deve ter o "Bearer " na Vercel
+    const RENDER_URL = "https://brasil-ia-converter.onrender.com/forms/libreoffice/convert";
 
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
     try {
-        const response = await fetch('https://api.cloudconvert.com/v2/jobs', {
+        const { fileBase64, filename } = req.body;
+
+        // Convertemos o Base64 de volta para um Blob para enviar ao Render
+        const byteCharacters = atob(fileBase64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const fileBlob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+
+        // Criamos o formulário que o Gotenberg exige
+        const formData = new FormData();
+        formData.append('files', fileBlob, filename);
+
+        // Chamada para o SEU servidor no Render
+        const response = await fetch(RENDER_URL, {
             method: 'POST',
-            headers: {
-                'Authorization': API_KEY,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                "tasks": {
-                    "import-1": { "operation": "import/upload" },
-                    "task-1": { 
-                        "operation": "convert", 
-                        "input": "import-1", 
-                        "output_format": "pdf" 
-                    },
-                    "export-1": { 
-                        "operation": "export/url", 
-                        "input": "task-1"
-                    }
-                },
-                "tag": "brasil-ia-office" // Ajuda a identificar o Job
-            })
+            body: formData
         });
 
-        const data = await response.json();
-
         if (response.ok) {
-            const uploadTask = data.data.tasks.find(t => t.name === 'import-1');
+            const pdfBuffer = await response.arrayBuffer();
+            const pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
             
-            // Retornamos o ID do Job exato que a CloudConvert acabou de criar
-            res.status(200).json({
-                jobId: data.data.id, 
-                upload: uploadTask.result.form
+            res.status(200).json({ 
+                pdfBase64: pdfBase64,
+                filename: filename.replace(/\.[^/.]+$/, "") + ".pdf" 
             });
         } else {
-            res.status(response.status).json({ error: data.message });
+            const errorText = await response.text();
+            res.status(response.status).json({ error: "Erro no servidor Render: " + errorText });
         }
     } catch (error) {
         res.status(500).json({ error: error.message });
