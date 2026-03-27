@@ -4,9 +4,7 @@ export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
     try {
-        const { filename } = req.body;
-
-        // CRIAR O JOB (Tarefa completa: Importar -> Converter -> Exportar)
+        // CRIAR O JOB COMPLETO (Importar -> Converter -> Exportar)
         const response = await fetch('https://api.cloudconvert.com/v2/jobs', {
             method: 'POST',
             headers: {
@@ -15,21 +13,22 @@ export default async function handler(req, res) {
             },
             body: JSON.stringify({
                 "tasks": {
-                    "import-1": { "operation": "import/upload" }, // Preparamos o upload
+                    "import-1": { "operation": "import/upload" },
                     "task-1": { 
                         "operation": "convert", 
                         "input": "import-1", 
                         "output_format": "pdf" 
                     },
                     "export-1": { "operation": "export/url", "input": "task-1" }
-                }
+                },
+                "tag": "brasil-ia-office"
             })
         });
 
         const data = await response.json();
 
         if (response.ok) {
-            // Pegamos a tarefa específica de upload para enviar ao navegador
+            // Pegamos os dados do formulário de upload
             const uploadTask = data.data.tasks.find(t => t.name === 'import-1');
             res.status(200).json({
                 jobId: data.data.id,

@@ -18,21 +18,21 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!file) return;
 
         convertBtn.disabled = true;
-        statusMsg.innerText = "⏳ Criando ordem de conversão...";
+        statusMsg.innerText = "⏳ Iniciando conversão segura...";
+        downloadArea.style.display = 'none';
 
         try {
-            // PASSO 1: Criar o Job e pegar autorização de upload
+            // 1. Criar Ordem na API
             const authRes = await fetch('/api/convert-office', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filename: file.name })
+                headers: { 'Content-Type': 'application/json' }
             });
 
             const jobData = await authRes.json();
             if (!authRes.ok) throw new Error(jobData.error);
 
-            // PASSO 2: Upload DIRETO para a CloudConvert
-            statusMsg.innerText = "🚀 Enviando arquivo pesado...";
+            // 2. Upload Direto (Sem limite de tamanho da Vercel)
+            statusMsg.innerText = "🚀 Enviando arquivo para a nuvem...";
             
             const formData = new FormData();
             Object.entries(jobData.upload.parameters).forEach(([key, value]) => {
@@ -45,16 +45,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: formData
             });
 
-            if (!uploadRes.ok) throw new Error("Falha no upload.");
+            if (!uploadRes.ok) throw new Error("Falha no envio.");
 
-            statusMsg.innerHTML = `⚙️ <b>Arquivo recebido!</b><br>Convertendo para PDF agora...`;
-
-            // PASSO 3: Link para o aluno baixar
-            // Para simplificar a aula, mandamos para o status do Job público
+            // 3. Mostrar o link de download para o aluno
+            statusMsg.innerHTML = `✅ <b>Upload concluído com sucesso!</b>`;
             downloadArea.style.display = 'block';
+            
+            // Link público para o aluno baixar o arquivo convertido
             fileLink.href = `https://cloudconvert.com/public/jobs/${jobData.jobId}`;
-            fileLink.innerText = "CLIQUE AQUI PARA BAIXAR O PDF";
-            fileLink.classList.add('btn-ready'); // Adicione um estilo de destaque se quiser
+            fileLink.innerText = "CLIQUE AQUI PARA BAIXAR SEU PDF";
+            fileLink.style.background = "#28a745"; // Cor de destaque verde
 
         } catch (error) {
             statusMsg.innerText = "❌ Erro: " + error.message;
