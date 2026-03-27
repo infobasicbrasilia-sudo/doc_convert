@@ -5,27 +5,20 @@ export default async function handler(req, res) {
 
     try {
         const { fileBase64, filename } = req.body;
-        if (!fileBase64) throw new Error("Arquivo não recebido pela API.");
-
         const buffer = Buffer.from(fileBase64, 'base64');
+        
         const formData = new FormData();
         const fileBlob = new Blob([buffer]);
         formData.append('files', fileBlob, filename);
 
-        // Aumentamos o timeout para 60 segundos para o Render acordar
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000);
-
+        // REMOVEMOS o AbortController para deixar a Vercel esperar o máximo possível (10-15s no plano free)
         const response = await fetch(RENDER_URL, {
             method: 'POST',
-            body: formData,
-            signal: controller.signal
+            body: formData
         });
 
-        clearTimeout(timeoutId);
-
         if (!response.ok) {
-            throw new Error(`O servidor Render respondeu com erro: ${response.status}`);
+            throw new Error(`Render fora do ar (Status: ${response.status})`);
         }
 
         const pdfBuffer = await response.arrayBuffer();
@@ -36,6 +29,6 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error("ERRO DE PERÍCIA:", error.message);
-        res.status(500).json({ error: "Falha na comunicação: " + error.message });
+        res.status(500).json({ error: "O motor está aquecendo. Tente novamente em 30 segundos." });
     }
 }
