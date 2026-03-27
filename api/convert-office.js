@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const convertBtn = document.getElementById('convertBtn');
     const statusMsg = document.getElementById('status');
     const downloadArea = document.getElementById('downloadArea');
+    const fileLink = document.getElementById('fileLink');
 
     console.log("Brasil IA: Sistema operacional.");
 
@@ -11,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (this.files && this.files[0]) {
             fileNameLabel.innerHTML = `<b>Selecionado:</b> ${this.files[0].name}`;
             convertBtn.disabled = false;
+            statusMsg.innerText = "";
         }
     });
 
@@ -21,16 +23,14 @@ document.addEventListener('DOMContentLoaded', function() {
         convertBtn.disabled = true;
         statusMsg.innerText = "⏳ Lendo arquivo... Aguarde.";
 
-        try {
-            // TRANSFORMA O ARQUIVO EM TEXTO (BASE64)
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            
-            reader.onload = async function() {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        
+        reader.onload = async function() {
+            try {
                 const base64File = reader.result.split(',')[1];
                 statusMsg.innerText = "🚀 Enviando para o servidor Brasil IA...";
 
-                // CHAMADA PARA A SUA API NA VERCEL
                 const response = await fetch('/api/convert-office', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -40,23 +40,31 @@ document.addEventListener('DOMContentLoaded', function() {
                     })
                 });
 
-                const result = await response.json();
-
-                if (response.ok && result.jobId) {
-                    statusMsg.innerHTML = `✅ <b>Sucesso!</b> Job ID: ${result.jobId}<br>Aguarde a conversão final...`;
-                    console.log("Job iniciado:", result.jobId);
-                    // Aqui o arquivo já está na CloudConvert!
-                    downloadArea.style.display = 'block';
+                // BLINDAGEM: Verifica se a resposta é JSON antes de tentar ler
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    const result = await response.json();
+                    
+                    if (response.ok && result.jobId) {
+                        statusMsg.innerHTML = "✅ <b>Sucesso!</b> Conversão iniciada.";
+                        downloadArea.style.display = 'block';
+                        fileLink.href = `https://cloudconvert.com/public/jobs/${result.jobId}`;
+                    } else {
+                        statusMsg.innerText = "❌ Erro na API: " + (result.error || "Falha na CloudConvert");
+                    }
                 } else {
-                    statusMsg.innerText = "❌ Erro na API: " + (result.error || "Falha desconhecida");
-                    console.error("Detalhes do erro:", result);
-                    convertBtn.disabled = false;
+                    // Se cair aqui, a Vercel mandou um erro em texto/HTML
+                    const errorText = await response.text();
+                    console.error("Erro bruto do servidor:", errorText);
+                    statusMsg.innerText = "❌ Erro 500: O servidor da Vercel falhou.";
                 }
-            };
-        } catch (error) {
-            statusMsg.innerText = "❌ Erro de conexão.";
-            console.error(error);
-            convertBtn.disabled = false;
-        }
-    });
+
+            } catch (error) {
+                statusMsg.innerText = "❌ Erro de conexão ou sintaxe.";
+                console.error("Erro detalhado:", error);
+            } finally {
+                convertBtn.disabled = false;
+            }
+        };
+    };
 });
