@@ -18,17 +18,17 @@
             <option value="pptx">PowerPoint (.pptx) ➔ PDF</option>
         </select>
 
-        <div class="drop-zone" id="dropZone">
+        <div class="drop-zone" id="dropZone" style="position: relative;">
             <span id="fileName">Clique para selecionar o arquivo</span>
             <input type="file" id="fileInput" accept=".docx,.xlsx,.pptx" 
-                   style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0;">
+                   style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;">
         </div>
 
         <button id="convertBtn" class="btn-convert" disabled>GERAR PDF AGORA</button>
         <div id="status" class="status-msg"></div>
 
-        <div id="downloadArea">
-            <p style="color: #155724; margin: 0; font-weight: bold;">✅ Documento Pronto!</p>
+        <div id="downloadArea" style="display: none;">
+            <p style="color: #155724; margin: 10px 0; font-weight: bold;">✅ Documento Pronto!</p>
             <a id="fileLink" href="#" class="download-link" target="_blank">BAIXAR PDF</a>
         </div>
         
