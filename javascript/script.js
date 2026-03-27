@@ -11,16 +11,12 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    // FUNÇÃO PARA ABRIR A JANELA (PLANO A e B)
-    function abrirJanela() {
-        console.log("Abrindo seletor de arquivos...");
-        fileInput.click();
-    }
-
     // Clique na zona de drop
     dropZone.addEventListener('click', function(e) {
         e.preventDefault();
-        abrirJanela();
+        e.stopPropagation(); // Evita que o clique se perca
+        console.log("Abrindo seletor de arquivos...");
+        fileInput.click();
     });
 
     // Quando o arquivo é selecionado

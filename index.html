@@ -20,11 +20,11 @@
 
         <div class="drop-zone" id="dropZone">
             <span id="fileName">Clique para selecionar o arquivo</span>
-            <input type="file" id="fileInput" accept=".docx,.xlsx,.pptx" style="display: none;">
+            <input type="file" id="fileInput" accept=".docx,.xlsx,.pptx" 
+                   style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0;">
         </div>
 
         <button id="convertBtn" class="btn-convert" disabled>GERAR PDF AGORA</button>
-        
         <div id="status" class="status-msg"></div>
 
         <div id="downloadArea">
