@@ -13,16 +13,33 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // FUNÇÃO DE RASTREIO (Polling)
+    async function checkStatus(jobId) {
+        statusMsg.innerText = "⚙️ Convertendo... (Não feche esta página)";
+        
+        const interval = setInterval(async () => {
+            try {
+                // Consultamos o status do Job via URL pública
+                const res = await fetch(`https://api.cloudconvert.com/v2/jobs/${jobId}`, {
+                    headers: { 'Authorization': 'Bearer SEU_TOKEN_AQUI_OU_VIA_API' } 
+                });
+                // Nota: Para segurança em aula, o ideal é o status passar pela sua API.
+                // Mas vamos usar o link de exportação que a CloudConvert gera:
+                
+                statusMsg.innerText = "⏳ O motor Brasil IA está finalizando seu PDF...";
+            } catch (e) { console.log("Aguardando..."); }
+        }, 3000);
+    }
+
     convertBtn.addEventListener('click', async function() {
         const file = fileInput.files[0];
         if (!file) return;
 
         convertBtn.disabled = true;
-        statusMsg.innerText = "⏳ Iniciando conversão segura...";
+        statusMsg.innerText = "🚀 Enviando arquivo...";
         downloadArea.style.display = 'none';
 
         try {
-            // 1. Criar Ordem na API (Busca o crachá de upload e o JobId)
             const authRes = await fetch('/api/convert-office', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
@@ -31,36 +48,25 @@ document.addEventListener('DOMContentLoaded', function() {
             const jobData = await authRes.json();
             if (!authRes.ok) throw new Error(jobData.error);
 
-            // 2. Upload Direto (Bypassa o limite de 4.5MB da Vercel)
-            statusMsg.innerText = "🚀 Enviando arquivo para a nuvem...";
-            
             const formData = new FormData();
             Object.entries(jobData.upload.parameters).forEach(([key, value]) => {
                 formData.append(key, value);
             });
             formData.append('file', file);
 
-            const uploadRes = await fetch(jobData.upload.url, {
-                method: 'POST',
-                body: formData
-            });
-
+            const uploadRes = await fetch(jobData.upload.url, { method: 'POST', body: formData });
             if (!uploadRes.ok) throw new Error("Falha no envio.");
 
-            // 3. Sucesso: Ativa o link de download na tela do aluno
-            statusMsg.innerHTML = `✅ <b>Upload concluído com sucesso!</b><br>Sua conversão está sendo processada.`;
+            // VITÓRIA: Em vez de abrir página, damos o link direto de espera
+            statusMsg.innerHTML = `✅ <b>Upload 100%!</b><br>Seu PDF está sendo gerado.`;
             downloadArea.style.display = 'block';
             
-            // O link agora usa o /public/ para não exigir login do aluno
+            // Este link "Public" da CloudConvert tem um botão de download automático assim que termina
             fileLink.href = `https://cloudconvert.com/public/jobs/${jobData.jobId}`;
-            fileLink.innerText = "CLIQUE AQUI PARA BAIXAR SEU PDF";
-            fileLink.style.display = "inline-block";
-            fileLink.style.padding = "10px 20px";
-            fileLink.style.marginTop = "10px";
-            fileLink.style.color = "white";
-            fileLink.style.textDecoration = "none";
-            fileLink.style.borderRadius = "5px";
-            fileLink.style.background = "#28a745"; // Verde Sucesso
+            fileLink.innerText = "CLIQUE AQUI PARA PEGAR SEU PDF";
+            
+            // DICA DE OURO: Abrir o link em uma nova aba para o aluno não perder o site
+            fileLink.target = "_blank";
 
         } catch (error) {
             statusMsg.innerText = "❌ Erro: " + error.message;
