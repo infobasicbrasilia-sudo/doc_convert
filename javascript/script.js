@@ -1,37 +1,42 @@
+// Este log TEM que aparecer no F12. Se não aparecer, o caminho do arquivo no HTML está errado.
+console.log("🚀 Motor Brasil IA: Sistema Iniciado");
+
 document.addEventListener('DOMContentLoaded', function() {
-    // 1. APRESENTAÇÃO DAS PEÇAS (Aqui resolvemos o erro 'not defined')
     const fileInput = document.getElementById('fileInput');
     const fileNameLabel = document.getElementById('fileName');
     const convertBtn = document.getElementById('convertBtn');
-    const statusMsg = document.getElementById('status'); // AQUI É O SEGREDO!
+    const statusMsg = document.getElementById('status');
     const downloadArea = document.getElementById('downloadArea');
     const fileLink = document.getElementById('fileLink');
 
-    // Verifica se os elementos existem antes de rodar (Segurança)
-    if (!statusMsg || !fileInput || !convertBtn) {
-        console.error("Erro: Verifique se os IDs no HTML (status, fileInput, convertBtn) estão corretos.");
-        return;
-    }
-
-    // 2. MONITOR DE SELEÇÃO
+    // 1. MONITOR DE SELEÇÃO DE ARQUIVO
     fileInput.addEventListener('change', function() {
-        if (this.files[0]) {
-            fileNameLabel.innerHTML = `<b>Selecionado:</b> ${this.files[0].name}`;
+        if (this.files && this.files[0]) {
+            const arquivo = this.files[0];
+            fileNameLabel.innerHTML = `<b>Arquivo:</b> ${arquivo.name}`;
             convertBtn.disabled = false;
+            statusMsg.innerText = "✅ Arquivo carregado. Clique em GERAR PDF.";
+            console.log("📁 Arquivo pronto:", arquivo.name);
         }
     });
 
-    // 3. AÇÃO DE CONVERSÃO
+    // 2. AÇÃO DO BOTÃO CONVERTER
     convertBtn.addEventListener('click', async function() {
         const file = fileInput.files[0];
-        if (!file) return;
+        if (!file) {
+            alert("Por favor, selecione um arquivo primeiro!");
+            return;
+        }
 
-        // Agora o statusMsg vai funcionar porque foi definido lá no topo!
-        statusMsg.innerText = "🚀 Enviando para o motor Brasil IA...";
+        console.log("🖱️ Botão clicado! Iniciando conversão...");
+        
         convertBtn.disabled = true;
+        statusMsg.innerText = "⏳ Convertendo no Servidor Brasil IA... (Aguarde)";
         downloadArea.style.display = 'none';
 
         const reader = new FileReader();
+        
+        // Transformar arquivo em Base64
         reader.readAsDataURL(file);
         
         reader.onload = async function() {
@@ -49,19 +54,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 const result = await response.json();
 
-                if (response.ok) {
-                    statusMsg.innerHTML = "✅ <b>Conversão Concluída!</b>";
+                if (response.ok && result.pdfBase64) {
+                    console.log("✅ Sucesso! PDF recebido.");
+                    statusMsg.innerText = "🎉 Conversão concluída com sucesso!";
                     downloadArea.style.display = 'block';
+                    
+                    // Prepara o link de download
                     fileLink.href = `data:application/pdf;base64,${result.pdfBase64}`;
-                    fileLink.download = result.filename;
-                    fileLink.innerText = "BAIXAR PDF AGORA";
+                    fileLink.download = result.filename || "documento_convertido.pdf";
                 } else {
-                    throw new Error(result.error || "Erro na API");
+                    throw new Error(result.error || "O servidor demorou muito para responder.");
                 }
             } catch (error) {
-                statusMsg.innerText = "❌ Erro: " + error.message;
+                console.error("❌ Erro na conversão:", error.message);
+                statusMsg.innerText = "❌ Erro: " + error.message + " (Tente novamente)";
                 convertBtn.disabled = false;
             }
+        };
+
+        reader.onerror = function() {
+            statusMsg.innerText = "❌ Erro ao ler o arquivo no navegador.";
+            convertBtn.disabled = false;
         };
     });
 });
