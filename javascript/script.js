@@ -1,47 +1,48 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Seleção de elementos (Todos os IDs devem existir no seu HTML)
+    // Seleção de elementos do DOM
     const fileInput = document.getElementById('fileInput');
     const fileNameLabel = document.getElementById('fileName');
     const convertBtn = document.getElementById('convertBtn');
     const statusMsg = document.getElementById('status');
     const downloadArea = document.getElementById('downloadArea');
-    const fileLink = document.getElementById('fileLink'); // Garantindo que esta variável exista
+    const fileLink = document.getElementById('fileLink');
 
     console.log("Brasil IA: Motor carregado com sucesso.");
 
-    // Detectar seleção de arquivo
+    // 1. Monitorar a seleção do arquivo
     fileInput.addEventListener('change', function() {
         if (this.files && this.files[0]) {
             const file = this.files[0];
             fileNameLabel.innerHTML = `<b>Selecionado:</b> ${file.name}`;
             convertBtn.disabled = false;
-            statusMsg.innerText = ""; // Limpa erros anteriores
-            downloadArea.style.display = 'none'; // Esconde download antigo
+            statusMsg.innerText = ""; // Limpa mensagens de erro
+            downloadArea.style.display = 'none'; // Esconde downloads anteriores
             console.log("Arquivo pronto para envio: " + file.name);
         }
     });
 
-    // Ação do Botão
+    // 2. Ação do Botão Converter
     convertBtn.addEventListener('click', function() {
         const file = fileInput.files[0];
         if (!file) return;
 
         convertBtn.disabled = true;
-        statusMsg.innerText = "⏳ Lendo arquivo... Aguarde.";
+        statusMsg.innerText = "⏳ Preparando arquivo... Aguarde.";
 
         const reader = new FileReader();
         
-        // Inicia a leitura do arquivo
+        // Converte o arquivo para Base64 (necessário para transporte via JSON)
         reader.readAsDataURL(file);
 
         reader.onload = async function() {
             try {
-                // Remove o cabeçalho "data:application/...;base64," para enviar só o código puro
+                // Remove o prefixo do Base64 (ex: data:application/pdf;base64,)
                 const base64File = reader.result.split(',')[1];
                 
                 statusMsg.innerText = "🚀 Enviando para o servidor Brasil IA...";
                 console.log("Disparando fetch para /api/convert-office");
 
+                // Envio para a API na Vercel
                 const response = await fetch('/api/convert-office', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -51,29 +52,37 @@ document.addEventListener('DOMContentLoaded', function() {
                     })
                 });
 
+                // VERIFICAÇÃO DE RESPOSTA (Blindagem contra erro 500)
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error("ERRO BRUTO DO SERVIDOR:", errorText);
+                    throw new Error(`Erro ${response.status}: Falha no processamento do servidor.`);
+                }
+
+                // Se a resposta for OK, lê o JSON
                 const result = await response.json();
 
-                if (response.ok && result.jobId) {
-                    statusMsg.innerHTML = "✅ <b>Sucesso!</b> Conversão iniciada.";
-                    console.log("Job ID recebido:", result.jobId);
+                if (result.jobId) {
+                    statusMsg.innerHTML = `✅ <b>Sucesso!</b> Job ID: ${result.jobId}<br>Processando no CloudConvert...`;
+                    console.log("Job iniciado com sucesso:", result.jobId);
                     
-                    // Mostra a área de download
+                    // Exibe a área de download com o link do Job para acompanhamento
                     downloadArea.style.display = 'block';
-                    // Link provisório para acompanhar o status no CloudConvert
-                    fileLink.href = `https://cloudconvert.com/public/jobs/${result.jobId}`;
+                    fileLink.href = `https://cloudconvert.com/public/jobs/${result.jobId}`; 
                 } else {
-                    throw new Error(result.error || "Falha na API");
+                    throw new Error(result.error || "A API não retornou um ID de trabalho.");
                 }
 
             } catch (error) {
-                statusMsg.innerText = "❌ Erro: " + error.message;
+                // Captura erros de rede, de servidor (500) ou de lógica
+                statusMsg.innerText = "❌ " + error.message;
                 console.error("Erro no processo:", error);
                 convertBtn.disabled = false;
             }
         };
 
         reader.onerror = function() {
-            statusMsg.innerText = "❌ Erro ao ler o arquivo no seu computador.";
+            statusMsg.innerText = "❌ Erro ao ler o arquivo no navegador.";
             convertBtn.disabled = false;
         };
     });
