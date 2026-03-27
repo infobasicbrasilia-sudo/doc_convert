@@ -1,89 +1,72 @@
-document.addEventListener('DOMContentLoaded', function() {
-    // Seleção de elementos do DOM
-    const fileInput = document.getElementById('fileInput');
-    const fileNameLabel = document.getElementById('fileName');
-    const convertBtn = document.getElementById('convertBtn');
-    const statusMsg = document.getElementById('status');
-    const downloadArea = document.getElementById('downloadArea');
-    const fileLink = document.getElementById('fileLink');
+export default async function handler(req, res) {
+    // 1. BUSCA O TOKEN DO COFRE (Configurado como CLOUDCONVERT_KEY na Vercel)
+    const API_KEY = process.env.CLOUDCONVERT_KEY;
 
-    console.log("Brasil IA: Motor carregado com sucesso.");
+    if (!API_KEY) {
+        console.error("[Brasil IA] ERRO: Chave de API não configurada no painel da Vercel.");
+        return res.status(500).json({ error: "Configuração de servidor ausente." });
+    }
 
-    // 1. Monitorar a seleção do arquivo
-    fileInput.addEventListener('change', function() {
-        if (this.files && this.files[0]) {
-            const file = this.files[0];
-            fileNameLabel.innerHTML = `<b>Selecionado:</b> ${file.name}`;
-            convertBtn.disabled = false;
-            statusMsg.innerText = ""; // Limpa mensagens de erro
-            downloadArea.style.display = 'none'; // Esconde downloads anteriores
-            console.log("Arquivo pronto para envio: " + file.name);
+    // 2. BLOQUEIO DE SEGURANÇA
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Método não permitido.' });
+    }
+
+    try {
+        const { file, filename } = req.body;
+
+        // 3. VALIDAÇÃO DE DADOS
+        if (!file || !filename) {
+            return res.status(400).json({ error: 'Dados do arquivo incompletos.' });
         }
-    });
 
-    // 2. Ação do Botão Converter
-    convertBtn.addEventListener('click', function() {
-        const file = fileInput.files[0];
-        if (!file) return;
+        console.log(`[Brasil IA] Iniciando conversão de: ${filename}`);
 
-        convertBtn.disabled = true;
-        statusMsg.innerText = "⏳ Preparando arquivo... Aguarde.";
-
-        const reader = new FileReader();
-        
-        // Converte o arquivo para Base64 (necessário para transporte via JSON)
-        reader.readAsDataURL(file);
-
-        reader.onload = async function() {
-            try {
-                // Remove o prefixo do Base64 (ex: data:application/pdf;base64,)
-                const base64File = reader.result.split(',')[1];
-                
-                statusMsg.innerText = "🚀 Enviando para o servidor Brasil IA...";
-                console.log("Disparando fetch para /api/convert-office");
-
-                // Envio para a API na Vercel
-                const response = await fetch('/api/convert-office', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        file: base64File,
-                        filename: file.name
-                    })
-                });
-
-                // VERIFICAÇÃO DE RESPOSTA (Blindagem contra erro 500)
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error("ERRO BRUTO DO SERVIDOR:", errorText);
-                    throw new Error(`Erro ${response.status}: Falha no processamento do servidor.`);
+        // 4. CHAMADA À CLOUDCONVERT (USANDO O TOKEN 'doc_convert')
+        const response = await fetch('https://api.cloudconvert.com/v2/jobs', {
+            method: 'POST',
+            headers: {
+                'Authorization': API_KEY, // Deve conter "Bearer eyJ..."
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                "tasks": {
+                    "import-1": { 
+                        "operation": "import/base64", 
+                        "file": file, 
+                        "filename": filename 
+                    },
+                    "task-1": { 
+                        "operation": "convert", 
+                        "input": "import-1", 
+                        "output_format": "pdf" 
+                    },
+                    "export-1": { 
+                        "operation": "export/url", 
+                        "input": "task-1" 
+                    }
                 }
+            })
+        });
 
-                // Se a resposta for OK, lê o JSON
-                const result = await response.json();
+        const data = await response.json();
 
-                if (result.jobId) {
-                    statusMsg.innerHTML = `✅ <b>Sucesso!</b> Job ID: ${result.jobId}<br>Processando no CloudConvert...`;
-                    console.log("Job iniciado com sucesso:", result.jobId);
-                    
-                    // Exibe a área de download com o link do Job para acompanhamento
-                    downloadArea.style.display = 'block';
-                    fileLink.href = `https://cloudconvert.com/public/jobs/${result.jobId}`; 
-                } else {
-                    throw new Error(result.error || "A API não retornou um ID de trabalho.");
-                }
+        // 5. RESPOSTA PARA O FRONTEND
+        if (response.ok && data.data && data.data.id) {
+            return res.status(200).json({ jobId: data.data.id });
+        } else {
+            console.error("[CloudConvert Reject]", data);
+            return res.status(response.status).json({ 
+                error: data.message || "A API recusou o processamento.",
+                details: data.errors || {}
+            });
+        }
 
-            } catch (error) {
-                // Captura erros de rede, de servidor (500) ou de lógica
-                statusMsg.innerText = "❌ " + error.message;
-                console.error("Erro no processo:", error);
-                convertBtn.disabled = false;
-            }
-        };
-
-        reader.onerror = function() {
-            statusMsg.innerText = "❌ Erro ao ler o arquivo no navegador.";
-            convertBtn.disabled = false;
-        };
-    });
-});
+    } catch (error) {
+        console.error("[Server Crash]", error);
+        return res.status(500).json({ 
+            error: "Erro interno no servidor Brasil IA.",
+            details: error.message 
+        });
+    }
+}
