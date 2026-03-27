@@ -3,8 +3,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileNameLabel = document.getElementById('fileName');
     const convertBtn = document.getElementById('convertBtn');
     const statusMsg = document.getElementById('status');
-    const downloadArea = document.getElementById('downloadArea');
-    const fileLink = document.getElementById('fileLink');
 
     fileInput.addEventListener('change', function() {
         if (this.files[0]) {
@@ -18,42 +16,39 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!file) return;
 
         convertBtn.disabled = true;
-        statusMsg.innerText = "⏳ Solicitando túnel de upload...";
+        statusMsg.innerText = "⏳ Criando túnel de segurança...";
 
         try {
-            // PASSO 1: Pegar autorização da nossa API
+            // PASSO 1: Pegar o crachá de upload na nossa API
             const authRes = await fetch('/api/convert-office', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filename: file.name })
+                headers: { 'Content-Type': 'application/json' }
             });
 
-            const uploadData = await authRes.json();
-            if (!authRes.ok) throw new Error(uploadData.error);
+            const uploadAuth = await authRes.json();
+            if (!authRes.ok) throw new Error(uploadAuth.error);
 
-            // PASSO 2: Upload DIRETO para a CloudConvert (Sem limite da Vercel)
+            // PASSO 2: Fazer o upload PESADO direto para a CloudConvert
             statusMsg.innerText = "🚀 Enviando arquivo pesado (Direto)...";
             
             const formData = new FormData();
-            // Adicionamos todos os campos que a CloudConvert exige
-            Object.entries(uploadData.result.form.parameters).forEach(([key, value]) => {
+            // Preenchemos os parâmetros exigidos pela CloudConvert
+            Object.entries(uploadAuth.result.form.parameters).forEach(([key, value]) => {
                 formData.append(key, value);
             });
-            formData.append('file', file);
+            formData.append('file', file); // O arquivo vai por último
 
-            const uploadRes = await fetch(uploadData.result.form.url, {
+            const uploadRes = await fetch(uploadAuth.result.form.url, {
                 method: 'POST',
                 body: formData
             });
 
             if (uploadRes.ok) {
-                statusMsg.innerHTML = `✅ <b>Sucesso!</b> Arquivo enviado.<br>Processando conversão...`;
-                downloadArea.style.display = 'block';
-                // Opcional: Aqui você usaria o ID para monitorar, mas vamos deixar o link manual por enquanto
-                fileLink.href = "https://cloudconvert.com/dashboard/api/v2/jobs"; 
-                fileLink.innerText = "VER STATUS NO PAINEL";
+                statusMsg.innerHTML = `✅ <b>Upload concluído!</b><br>O arquivo está sendo convertido na nuvem.`;
+                // Aqui você pode redirecionar ou mostrar o link do painel
+                window.open("https://cloudconvert.com/dashboard/api/v2/jobs", "_blank");
             } else {
-                throw new Error("Falha no upload direto.");
+                throw new Error("O upload direto falhou.");
             }
 
         } catch (error) {
