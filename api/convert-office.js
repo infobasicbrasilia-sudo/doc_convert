@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-    const API_KEY = process.env.CLOUDCONVERT_KEY;
+    const API_KEY = process.env.CLOUDCONVERT_KEY; // Deve ter o "Bearer " na Vercel
 
     if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
@@ -20,10 +20,10 @@ export default async function handler(req, res) {
                     },
                     "export-1": { 
                         "operation": "export/url", 
-                        "input": "task-1",
-                        "archive_multiple_files": false
+                        "input": "task-1"
                     }
-                }
+                },
+                "tag": "brasil-ia-office" // Ajuda a identificar o Job
             })
         });
 
@@ -31,7 +31,8 @@ export default async function handler(req, res) {
 
         if (response.ok) {
             const uploadTask = data.data.tasks.find(t => t.name === 'import-1');
-            // IMPORTANTE: Retornamos o ID do JOB para o link público
+            
+            // Retornamos o ID do Job exato que a CloudConvert acabou de criar
             res.status(200).json({
                 jobId: data.data.id, 
                 upload: uploadTask.result.form
