@@ -1,0 +1,11 @@
+body { background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+.card { background: white; padding: 2.5rem; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 400px; border-top: 6px solid #003399; }
+.logo-brasil { width: 80px; margin-bottom: 1rem; }
+h1 { color: #003399; margin: 0; }
+.select-box { width: 100%; padding: 12px; margin-bottom: 1rem; border-radius: 8px; border: 2px solid #ddd; }
+.drop-zone { border: 2px dashed #003399; padding: 2rem; border-radius: 12px; cursor: pointer; margin-bottom: 1.5rem; background: #f8f9fa; }
+.btn-convert { background: #003399; color: white; border: none; padding: 14px; border-radius: 8px; font-weight: bold; width: 100%; cursor: pointer; }
+.btn-convert:disabled { background: #ccc; }
+.status-msg { margin-top: 1rem; padding: 12px; border-radius: 8px; display: none; font-weight: bold; }
+#downloadArea { margin-top: 1.5rem; display: none; background: #d4edda; padding: 1rem; border-radius: 10px; }
+.download-link { display: inline-block; padding: 10px 20px; background: #28a745; color: white; text-decoration: none; border-radius: 6px; margin-top: 10px; }

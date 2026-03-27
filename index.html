@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brasil IA Office</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="card">
+        <img src="BSBiA.png" alt="Logo" class="logo-brasil">
+        <h1>Brasil IA Office</h1>
+        <p>Conversor de Documentos para PDF</p>
+
+        <select id="formatSelect" class="select-box">
+            <option value="docx">Word (.docx) ➔ PDF</option>
+            <option value="xlsx">Excel (.xlsx) ➔ PDF</option>
+            <option value="pptx">PowerPoint (.pptx) ➔ PDF</option>
+        </select>
+
+        <div class="drop-zone" id="dropZone">
+            <span id="fileName">Clique para selecionar o arquivo</span>
+            <input type="file" id="fileInput" accept=".docx,.xlsx,.pptx" style="display: none;">
+        </div>
+
+        <button id="convertBtn" class="btn-convert" disabled>GERAR PDF AGORA</button>
+        
+        <div id="status" class="status-msg"></div>
+
+        <div id="downloadArea">
+            <p style="color: #155724; margin: 0; font-weight: bold;">✅ Documento Pronto!</p>
+            <a id="fileLink" href="#" class="download-link" target="_blank">BAIXAR PDF</a>
+        </div>
+        
+        <div style="margin-top: 25px; font-size: 0.75rem; color: #aaa;">
+            <b>Instrutor Joner & Alunos 2026</b>
+        </div>
+    </div>
+
+    <script src="javascript/script.js"></script>
+</body>
+</html>
