@@ -1,68 +1,62 @@
-export default async function handler(req, res) {
-    // Busca a chave das variáveis de ambiente da Vercel (Segurança)
-    // Se ainda não setou na Vercel, pode manter a string "Bearer ..." aqui temporariamente
-    const API_KEY = process.env.CLOUDCONVERT_KEY || "CLOUDCONVERT_KEY";
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('fileInput');
+    const fileNameLabel = document.getElementById('fileName');
+    const convertBtn = document.getElementById('convertBtn');
+    const statusMsg = document.getElementById('status');
+    const downloadArea = document.getElementById('downloadArea');
 
-    // 1. Bloqueia métodos que não sejam POST Bearer SEU_TOKEN_AQUI
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Método não permitido. Use POST.' });
-    }
+    console.log("Brasil IA: Sistema operacional.");
 
-    try {
-        const { file, filename } = req.body;
-
-        // 2. Validação de dados (Evita erro 500 por falta de arquivo)
-        if (!file || !filename) {
-            return res.status(400).json({ error: 'Arquivo ou nome do arquivo ausente.' });
+    fileInput.addEventListener('change', function() {
+        if (this.files && this.files[0]) {
+            fileNameLabel.innerHTML = `<b>Selecionado:</b> ${this.files[0].name}`;
+            convertBtn.disabled = false;
         }
+    });
 
-        console.log(`Iniciando conversão para: ${filename}`);
+    convertBtn.addEventListener('click', async function() {
+        const file = fileInput.files[0];
+        if (!file) return;
 
-        // 3. Chamada para a CloudConvert
-        const response = await fetch('https://api.cloudconvert.com/v2/jobs', {
-            method: 'POST',
-            headers: {
-                'Authorization': API_KEY,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                "tasks": {
-                    "import-1": { 
-                        "operation": "import/base64", 
-                        "file": file, 
-                        "filename": filename 
-                    },
-                    "task-1": { 
-                        "operation": "convert", 
-                        "input": "import-1", 
-                        "output_format": "pdf" 
-                    },
-                    "export-1": { 
-                        "operation": "export/url", 
-                        "input": "task-1" 
-                    }
+        convertBtn.disabled = true;
+        statusMsg.innerText = "⏳ Lendo arquivo... Aguarde.";
+
+        try {
+            // TRANSFORMA O ARQUIVO EM TEXTO (BASE64)
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            
+            reader.onload = async function() {
+                const base64File = reader.result.split(',')[1];
+                statusMsg.innerText = "🚀 Enviando para o servidor Brasil IA...";
+
+                // CHAMADA PARA A SUA API NA VERCEL
+                const response = await fetch('/api/convert-office', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        file: base64File,
+                        filename: file.name
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.jobId) {
+                    statusMsg.innerHTML = `✅ <b>Sucesso!</b> Job ID: ${result.jobId}<br>Aguarde a conversão final...`;
+                    console.log("Job iniciado:", result.jobId);
+                    // Aqui o arquivo já está na CloudConvert!
+                    downloadArea.style.display = 'block';
+                } else {
+                    statusMsg.innerText = "❌ Erro na API: " + (result.error || "Falha desconhecida");
+                    console.error("Detalhes do erro:", result);
+                    convertBtn.disabled = false;
                 }
-            })
-        });
-
-        const data = await response.json();
-
-        // 4. Resposta para o seu Frontend (script.js)
-        if (response.ok && data.data && data.data.id) {
-            return res.status(200).json({ 
-                jobId: data.data.id,
-                status: "processing" 
-            });
-        } else {
-            console.error("Erro CloudConvert:", data);
-            return res.status(response.status).json({ 
-                error: data.message || "Erro na API CloudConvert",
-                details: data.errors || {}
-            });
+            };
+        } catch (error) {
+            statusMsg.innerText = "❌ Erro de conexão.";
+            console.error(error);
+            convertBtn.disabled = false;
         }
-
-    } catch (error) {
-        console.error("Erro no Servidor:", error);
-        return res.status(500).json({ error: "Erro interno no servidor: " + error.message });
-    }
-}
+    });
+});
