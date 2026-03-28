@@ -1,4 +1,4 @@
-console.log("🚀 Motor Brasil IA: Sistema de Conexão Direta Ativado");
+console.log("🚀 Motor Brasil IA: Sistema via Proxy Vercel Ativado");
 
 document.addEventListener('DOMContentLoaded', function() {
     const fileInput = document.getElementById('fileInput');
@@ -7,9 +7,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusMsg = document.getElementById('status');
     const downloadArea = document.getElementById('downloadArea');
     const fileLink = document.getElementById('fileLink');
-
-    // O SEU LINK DIRETO DO RENDER (Sem a Vercel no meio)
-    const RENDER_DIRECT_URL = "https://brasil-ia-converter.onrender.com/forms/libreoffice/convert";
 
     fileInput.addEventListener('change', function() {
         if (this.files[0]) {
@@ -22,45 +19,51 @@ document.addEventListener('DOMContentLoaded', function() {
         const file = fileInput.files[0];
         if (!file) return;
 
-        console.log("🖱️ Botão clicado! Iniciando Conexão Direta com o Render...");
-        statusMsg.innerHTML = "⏳ <b>Iniciando...</b> (O motor leva até 30s para ligar)";
+        console.log("🖱️ Botão clicado! Enviando para API Vercel...");
+        statusMsg.innerHTML = "⏳ <b>Processando...</b> (O motor pode levar 20s para acordar)";
         
         convertBtn.disabled = true;
         downloadArea.style.display = 'none';
 
-        try {
-            const formData = new FormData();
-            formData.append('files', file, file.name);
+        // 1. Converte o arquivo para Base64 para enviar via JSON
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        
+        reader.onload = async function() {
+            const base64Data = reader.result.split(',')[1];
 
-            console.log("📡 Enviando arquivo diretamente para o Render...");
-            
-            // Aqui o navegador vai esperar o tempo que for preciso (sem o corte da Vercel)
-            const response = await fetch(RENDER_DIRECT_URL, {
-                method: 'POST',
-                body: formData
-            });
-
-            console.log("📩 Resposta do Render recebida! Status:", response.status);
-
-            if (response.ok) {
-                const pdfBlob = await response.blob();
-                const pdfUrl = URL.createObjectURL(pdfBlob);
+            try {
+                console.log("📡 Chamando a ponte: /api/convert-office");
                 
-                console.log("✅ Sucesso! PDF gerado localmente.");
-                statusMsg.innerHTML = "✅ <b>Documento Convertido!</b>";
-                downloadArea.style.display = 'block';
-                
-                fileLink.href = pdfUrl;
-                fileLink.download = file.name.replace(/\.[^/.]+$/, "") + ".pdf";
-                fileLink.innerText = "BAIXAR MEU PDF AGORA";
-            } else {
-                throw new Error("O servidor Render está ocupado ou ligando.");
+                const response = await fetch('/api/convert-office', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        filename: file.name,
+                        fileBase64: base64Data
+                    })
+                });
+
+                console.log("📩 Resposta da API recebida. Status:", response.status);
+                const result = await response.json();
+
+                if (response.ok) {
+                    console.log("✅ Sucesso! PDF gerado.");
+                    statusMsg.innerHTML = "✅ <b>Documento Convertido!</b>";
+                    downloadArea.style.display = 'block';
+                    
+                    fileLink.href = `data:application/pdf;base64,${result.pdfBase64}`;
+                    fileLink.download = result.filename;
+                    fileLink.innerText = "BAIXAR MEU PDF AGORA";
+                } else {
+                    throw new Error(result.error || "Erro na conversão");
+                }
+
+            } catch (error) {
+                console.error("❌ ERRO:", error.message);
+                statusMsg.innerHTML = "❌ <b>O motor ainda está ligando...</b><br>Aguarde 10 segundos e tente novamente.";
+                convertBtn.disabled = false;
             }
-
-        } catch (error) {
-            console.error("❌ ERRO:", error.message);
-            statusMsg.innerHTML = "❌ <b>O motor está acordando...</b><br>Aguarde 10 segundos e clique em GERAR novamente.";
-            convertBtn.disabled = false;
-        }
+        };
     });
 });
