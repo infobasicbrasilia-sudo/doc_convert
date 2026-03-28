@@ -1,30 +1,47 @@
 export default async function handler(req, res) {
-    const RENDER_URL = "https://brasil-ia-converter.onrender.com/forms/libreoffice/convert";
-    if (req.method !== 'POST') return res.status(405).send("Apenas POST");
+    // ⚠️ A URL PRECISA TERMINAR EXATAMENTE ASSIM
+    const RENDER_URL = "https://brasil-ia-motor.onrender.com/forms/libreoffice/convert";
+
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
 
     try {
         const { fileBase64, filename } = req.body;
+        
+        // Convertendo o Base64 que veio do navegador em um Buffer real
         const buffer = Buffer.from(fileBase64, 'base64');
         
+        // Criando o formulário que o Gotenberg entende
         const formData = new FormData();
-        // IMPORTANTE: O Gotenberg exige o nome 'files' (no plural)
         const fileBlob = new Blob([buffer]);
+        
+        // O SEGREDO: O Gotenberg exige o nome do campo como 'files'
         formData.append('files', fileBlob, filename);
+
+        console.log(`📡 Enviando ${filename} para o motor oficial...`);
 
         const response = await fetch(RENDER_URL, {
             method: 'POST',
             body: formData
         });
 
-        if (!response.ok) throw new Error("Erro no Render");
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("❌ Resposta do Motor:", errorText);
+            throw new Error(`Erro do Motor: ${response.status}`);
+        }
 
         const pdfBuffer = await response.arrayBuffer();
+        const pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
+
+        console.log("✅ PDF gerado com sucesso pela ponte!");
+
         res.status(200).json({ 
-            pdfBase64: Buffer.from(pdfBuffer).toString('base64'),
+            pdfBase64: pdfBase64, 
             filename: filename.replace(/\.[^/.]+$/, "") + ".pdf" 
         });
 
     } catch (error) {
-        res.status(500).json({ error: "Motor em aquecimento. Tente novamente." });
+        console.error("❌ ERRO NA PONTE:", error.message);
+        res.status(500).json({ error: "O motor está ocupado ou aquecendo. Tente novamente agora!" });
     }
 }
