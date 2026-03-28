@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (this.files[0]) {
             fileNameLabel.innerHTML = `<b>Selecionado:</b> ${this.files[0].name}`;
             convertBtn.disabled = false;
+            statusMsg.innerHTML = "✅ Arquivo pronto para conversão.";
         }
     });
 
@@ -20,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!file) return;
 
         console.log("🖱️ Botão clicado! Enviando para API Vercel...");
-        statusMsg.innerHTML = "⏳ <b>Processando...</b> (O motor pode levar 20s para acordar)";
+        statusMsg.innerHTML = "⏳ <b>Aquecendo motor...</b> (Isso pode levar 15-20 segundos)";
         
         convertBtn.disabled = true;
         downloadArea.style.display = 'none';
@@ -43,22 +44,33 @@ document.addEventListener('DOMContentLoaded', function() {
                     })
                 });
 
-                const result = await response.json();
-
-                if (response.ok) {
-                    console.log("✅ Sucesso! PDF gerado.");
-                    statusMsg.innerHTML = "✅ <b>Documento Convertido!</b>";
-                    downloadArea.style.display = 'block';
-                    
-                    fileLink.href = `data:application/pdf;base64,${result.pdfBase64}`;
-                    fileLink.download = result.filename;
-                } else {
-                    throw new Error(result.error || "Erro na conversão");
+                // Se a Vercel retornar 504 ou 500, o catch vai capturar
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error || `Erro do Servidor (${response.status})`);
                 }
 
+                const result = await response.json();
+
+                console.log("✅ Sucesso! PDF gerado.");
+                statusMsg.innerHTML = "🎉 <b>Conversão Concluída com Sucesso!</b>";
+                downloadArea.style.display = 'block';
+                
+                fileLink.href = `data:application/pdf;base64,${result.pdfBase64}`;
+                fileLink.download = result.filename;
+                fileLink.innerText = "BAIXAR MEU PDF";
+
             } catch (error) {
-                console.error("❌ ERRO:", error.message);
-                statusMsg.innerHTML = "❌ <b>O motor ainda está ligando...</b><br>Aguarde 10 segundos e tente novamente.";
+                console.error("❌ ERRO NA PERÍCIA:", error.message);
+                
+                // Mensagem didática para os alunos
+                statusMsg.innerHTML = `
+                    <div style="color: #856404; background-color: #fff3cd; padding: 10px; border-radius: 5px; border: 1px solid #ffeeba;">
+                        <b>⚠️ Motor em Partida a Frio:</b><br>
+                        O servidor gratuito estava dormindo. Acabamos de acordá-lo!<br>
+                        <strong>Aguarde 5 segundos e clique no botão novamente.</strong>
+                    </div>
+                `;
                 convertBtn.disabled = false;
             }
         };
