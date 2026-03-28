@@ -25,7 +25,6 @@ document.addEventListener('DOMContentLoaded', function() {
         convertBtn.disabled = true;
         downloadArea.style.display = 'none';
 
-        // 1. Converte o arquivo para Base64 para enviar via JSON
         const reader = new FileReader();
         reader.readAsDataURL(file);
         
@@ -33,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const base64Data = reader.result.split(',')[1];
 
             try {
-                console.log("📡 Chamando a ponte: /api/convert-office");
+                console.log("📡 Chamando a ponte segura: /api/convert-office");
                 
                 const response = await fetch('/api/convert-office', {
                     method: 'POST',
@@ -44,7 +43,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     })
                 });
 
-                console.log("📩 Resposta da API recebida. Status:", response.status);
                 const result = await response.json();
 
                 if (response.ok) {
@@ -54,7 +52,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     fileLink.href = `data:application/pdf;base64,${result.pdfBase64}`;
                     fileLink.download = result.filename;
-                    fileLink.innerText = "BAIXAR MEU PDF AGORA";
                 } else {
                     throw new Error(result.error || "Erro na conversão");
                 }
